@@ -11,8 +11,9 @@ class User(Base):
     google_id = Column(String, unique=True, index=True, nullable=False)
     email = Column(String, unique=True, index=True, nullable=False)
     name = Column(String, nullable=True)
-    monthly_page_limit = Column(Integer, default=30)
+    monthly_page_limit = Column(Integer, default=50)
     pages_processed_this_month = Column(Integer, default=0)
+    plan_type = Column(String, default='free')
     last_reset_date = Column(DateTime, default=func.now())
     pdfs = relationship('PDF', back_populates='user')
 

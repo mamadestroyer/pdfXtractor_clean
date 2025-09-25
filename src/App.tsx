@@ -140,6 +140,7 @@ interface UserInfo {
   email: string;
   pages_processed_this_month?: number;
   monthly_page_limit?: number;
+  plan_type?: string;
 }
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
@@ -441,10 +442,106 @@ const Landing = () => {
     </div>
 // Ekstra: Parallax için window scroll event'i ile main-bg'e background-position hareketi eklenebilir.
   );
+// Sidebar Component
+const Sidebar = ({ user, onLogout }: { user: UserInfo; onLogout: () => void }) => {
+  const pagesUsed = user.pages_processed_this_month || 0;
+  const pageLimit = user.monthly_page_limit || 50;
+  const progressPercentage = (pagesUsed / pageLimit) * 100;
+  const isNearLimit = progressPercentage >= 80;
+  const isAtLimit = pagesUsed >= pageLimit;
+
+  return (
+    <div className="fixed left-0 top-0 h-full w-64 bg-black/20 backdrop-blur-xl border-r border-white/10 flex flex-col">
+      {/* Header with logout */}
+      <div className="p-6 border-b border-white/10">
+        <button
+          onClick={onLogout}
+          className="w-full px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 
+            rounded-lg transition-colors duration-200 flex items-center justify-center gap-2"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+              d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+          </svg>
+          Logout
+        </button>
+      </div>
+
+      {/* Usage Statistics */}
+      <div className="flex-1 p-6">
+        <div className="mb-6">
+          <h3 className="text-lg font-semibold text-white mb-4">Usage Statistics</h3>
+          
+          {/* Progress Bar */}
+          <div className="mb-4">
+            <div className="flex justify-between text-sm text-gray-400 mb-2">
+              <span>Pages Processed</span>
+              <span>{pagesUsed}/{pageLimit}</span>
+            </div>
+            <div className="w-full bg-gray-700 rounded-full h-2">
+              <div 
+                className={`h-2 rounded-full transition-all duration-300 ${
+                  isAtLimit ? 'bg-red-500' : 
+                  isNearLimit ? 'bg-yellow-500' : 'bg-green-500'
+                }`}
+                style={{ width: `${Math.min(progressPercentage, 100)}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Status Messages */}
+          {isAtLimit && (
+            <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg mb-4">
+              <p className="text-red-400 text-sm">
+                ⚠️ Processing limit reached! Upgrade to continue.
+              </p>
+            </div>
+          )}
+          {isNearLimit && !isAtLimit && (
+            <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg mb-4">
+              <p className="text-yellow-400 text-sm">
+                ⚡ You're approaching your limit ({pageLimit - pagesUsed} pages left)
+              </p>
+            </div>
+          )}
+
+          {/* Plan Info */}
+          <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+            <p className="text-blue-400 text-sm font-medium">
+              {user.plan_type === 'free' ? '🆓 Free Plan' : '⭐ Premium Plan'}
+            </p>
+            <p className="text-gray-400 text-xs mt-1">
+              {pageLimit} pages per month
+            </p>
+          </div>
+        </div>
+      </div>
+};
+      {/* User Info at Bottom */}
+      <div className="p-6 border-t border-white/10">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full 
+            flex items-center justify-center text-white font-semibold">
+            {(user.name || user.email).charAt(0).toUpperCase()}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-white font-medium truncate">
+              {user.name || user.email}
+            </p>
+            <p className="text-gray-400 text-xs truncate">
+              {user.email}
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 // PDF Processing Page Component
 const ProcessPage = () => {
+  const [user, setUser] = useState<UserInfo | null>(null);
+  const [isLoadingUser, setIsLoadingUser] = useState(true);
   const [file, setFile] = useState<File | null>(null);
   const [processing, setProcessing] = useState(false);
   const [results, setResults] = useState<ProcessResponse | null>(null);
@@ -454,6 +551,50 @@ const ProcessPage = () => {
   const [tableData, setTableData] = useState<{ [key: number]: any }>({});
   const [loadingQuestions, setLoadingQuestions] = useState<{ [key: number]: boolean }>({});
   const [dragActive, setDragActive] = useState(false);
+
+  // Check authentication and get user info
+  const checkAuth = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/auth/me`, {
+        withCredentials: true,
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
+      
+      if (res.data && res.data.id) {
+        setUser(res.data);
+      } else {
+        // Redirect to home if not authenticated
+        window.location.href = '/';
+      }
+    } catch (error) {
+      console.error('Auth check failed:', error);
+      window.location.href = '/';
+    } finally {
+      setIsLoadingUser(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await axios.post(`${API_URL}/auth/logout`, {}, { 
+        withCredentials: true,
+        headers: { 'Content-Type': 'application/json' }
+      });
+      window.location.href = '/';
+    } catch (error) {
+      console.error('Logout failed:', error);
+      window.location.href = '/';
+    }
+  };
+
+  useEffect(() => {
+    checkAuth();
+  }, []);
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -489,6 +630,13 @@ const ProcessPage = () => {
       return;
     }
 
+    // Check user limits before upload
+    if (user && user.pages_processed_this_month && user.monthly_page_limit) {
+      if (user.pages_processed_this_month >= user.monthly_page_limit) {
+        setError(`Processing limit reached! You have used ${user.pages_processed_this_month}/${user.monthly_page_limit} pages.`);
+        return;
+      }
+    }
     setUploading(true);
     setError(null);
 
@@ -496,8 +644,20 @@ const ProcessPage = () => {
       const formData = new FormData();
       formData.append('file', file);
 
-      const uploadResponse = await axios.post(`${API_URL}/upload`, formData);
+      const uploadResponse = await axios.post(`${API_URL}/upload_pdf`, formData, {
+        withCredentials: true,
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
 
+      // Update user info with new usage stats
+      if (uploadResponse.data) {
+        setUser(prev => prev ? {
+          ...prev,
+          pages_processed_this_month: uploadResponse.data.pages_used
+        } : null);
+      }
       setUploading(false);
       setProcessing(true);
 
@@ -519,7 +679,11 @@ const ProcessPage = () => {
       }
     } catch (err) {
       setUploading(false);
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      if (axios.isAxiosError(err) && err.response?.status === 403) {
+        setError(err.response.data.detail || 'Processing limit reached');
+      } else {
+        setError(err instanceof Error ? err.message : 'An error occurred');
+      }
     } finally {
       setProcessing(false);
     }

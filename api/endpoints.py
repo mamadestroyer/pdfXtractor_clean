@@ -29,6 +29,14 @@ async def upload_pdf(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user)
 ):
+    # Check user limits before processing
+    pages_left = user.monthly_page_limit - user.pages_processed_this_month
+    if pages_left <= 0:
+        raise HTTPException(
+            status_code=403, 
+            detail=f'Processing limit reached. You have used {user.pages_processed_this_month}/{user.monthly_page_limit} pages.'
+        )
+
     # Dosyayı kaydet
     file_path = os.path.join(UPLOAD_DIR, file.filename)
     with open(file_path, 'wb') as buffer:
@@ -36,10 +44,14 @@ async def upload_pdf(
 
     # PDF sayfa sayısını bul
     pages_total = await get_pdf_page_count(file_path)
-    pages_left = user.monthly_page_limit - user.pages_processed_this_month
-    if pages_left <= 0:
-        raise HTTPException(status_code=403, detail='Limit reached')
     pages_to_process = min(pages_total, pages_left)
+    
+    # Check if we can process at least 1 page
+    if pages_to_process <= 0:
+        raise HTTPException(
+            status_code=403, 
+            detail=f'Processing limit reached. You have used {user.pages_processed_this_month}/{user.monthly_page_limit} pages.'
+        )
 
     # PDF kaydı oluştur
     pdf = PDF(
@@ -59,5 +71,8 @@ async def upload_pdf(
         'pdf_id': pdf.id,
         'pages_total': pages_total,
         'pages_processed': pages_to_process,
-        'limit_left': user.monthly_page_limit - user.pages_processed_this_month
+        'pages_used': user.pages_processed_this_month,
+        'page_limit': user.monthly_page_limit,
+        'limit_left': user.monthly_page_limit - user.pages_processed_this_month,
+        'plan_type': user.plan_type
     }

@@ -145,7 +145,8 @@ async def get_me(request: Request):
             "name": user.name,
             "email": user.email,
             "pages_processed_this_month": user.pages_processed_this_month,
-            "monthly_page_limit": user.monthly_page_limit
+            "monthly_page_limit": user.monthly_page_limit,
+            "plan_type": user.plan_type or 'free'
         }
 
 @router.post('/logout')
