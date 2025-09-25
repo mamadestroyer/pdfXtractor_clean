@@ -19,9 +19,6 @@ class QuestionRequest(BaseModel):
         
 app = FastAPI(title="PDF Table Processor API")
 
-# Early session middleware (restored per request)
-app.add_middleware(SessionMiddleware, secret_key="cagatay-uygulama-secret-anahtari-2024")
-
 # CORS middleware configuration
 allowed_origins = [
     "http://localhost:5173",
