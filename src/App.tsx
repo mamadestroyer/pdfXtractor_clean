@@ -643,38 +643,61 @@ const ProcessPage = () => {
                   className={`w-full border-2 border-dashed rounded-xl p-8 mb-6 text-center
                     ${dragActive ? 'border-blue-500 bg-blue-500/10' : 'border-white/10 hover:border-white/20'}
                     transition-all duration-200`}
-            <div className="relative">
-              <button 
-                onClick={() => setShowDropdown(!showDropdown)}
-                onMouseEnter={() => setShowDropdown(true)}
-                onMouseLeave={() => setShowDropdown(false)}
-                className="flex items-center gap-2 text-white font-medium px-4 py-2 rounded-lg hover:bg-white/10 transition-colors"
-              >
-                <span>{user.name || user.email}</span>
-                <svg width="12" height="8" viewBox="0 0 12 8" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M1 1.5L6 6.5L11 1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </button>
-              {showDropdown && (
-                <div 
-                  className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg py-1 z-50 border border-gray-200"
-                  onMouseEnter={() => setShowDropdown(true)}
-                  onMouseLeave={() => setShowDropdown(false)}
+                  onDragEnter={handleDrag}
+                  onDragLeave={handleDrag}
+                  onDragOver={handleDrag}
+                  onDrop={handleDrop}
                 >
-                  <div className="px-4 py-2 text-sm text-gray-500 border-b border-gray-100">
-                    <div className="font-medium text-gray-900">{user.name || user.email}</div>
-                    <div className="text-xs">
-                      {user.pages_processed_this_month || 0}/{user.monthly_page_limit || 100} pages used
-                    </div>
-                  </div>
-                  <button
-                    onClick={handleLogout}
-                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                  >
-                    Logout
-                  </button>
+                  <input
+                    type="file"
+                    accept=".pdf"
+                    onChange={handleFileChange}
+                    className="hidden"
+                    id="file-upload"
+                  />
+                  <label htmlFor="file-upload" className="cursor-pointer">
+                    <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-lg text-white mb-2">
+                      {file ? file.name : 'Drop your PDF here or click to browse'}
+                    </p>
+                    <p className="text-sm text-gray-400">
+                      Supports PDF files up to 10MB
+                    </p>
+                  </label>
                 </div>
-              )}
+
+                <button
+                  onClick={handleUpload}
+                  disabled={!file || uploading || processing}
+                  className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 
+                    hover:to-purple-700 disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed
+                    text-white font-semibold py-3 px-6 rounded-xl transition-all duration-200 
+                    flex items-center justify-center gap-2"
+                >
+                  {uploading ? (
+                    <>
+                      <Upload className="w-5 h-5 animate-spin" />
+                      Uploading...
+                    </>
+                  ) : processing ? (
+                    <>
+                      <Sparkles className="w-5 h-5 animate-pulse" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <ArrowRight className="w-5 h-5" />
+                      Process PDF
+                    </>
+                  )}
+                </button>
+
+                {error && (
+                  <div className="mt-4 p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
+                    <p className="text-red-400">{error}</p>
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-8 feature-grid-mobile">
